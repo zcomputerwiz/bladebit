@@ -113,7 +113,7 @@ struct DiskF1
 
                 const uint32* yBlocks = blocks + (x - chachaBlock * entriesPerBlock);
 
-                // Distribue to buckets
+                // Distribute to buckets
                 uint64 counts     [_numBuckets];
                 uint64 pfxSum     [_numBuckets];
                 uint64 totalCounts[_numBuckets];
@@ -130,6 +130,9 @@ struct DiskF1
 
                     for( uint32 i = 0; i < _numBuckets; i++ )
                         _context.bucketCounts[0][i] += (uint32)totalCounts[i];
+
+                    for( uint32 i = 0; i < _numBuckets; i++ )
+                        _context.bucketSlices[bucket][i] += totalCounts[i];
 
                     // Convert counts to bit sizes
                     for( uint32 i = 0; i < _numBuckets; i++ )
@@ -174,7 +177,7 @@ struct DiskF1
                     BitWriter writer = bitWriter.GetWriter( i, bitOffset );
                     
                     const uint64* entry = entries + offset;
-                    const uint64* end   = entry + counts[i];
+                    const uint64* end   = entry   + counts[i];
                     ASSERT( counts[i] >= 2 );
 
                     // Compress a couple of entries first, so that we don't get any simultaneaous writes to the same fields
@@ -195,7 +198,7 @@ struct DiskF1
                 if( self->IsControlThread() )
                 {
                     self->LockThreads();
-                    bitWriter.SubmitAndRelease();
+                    bitWriter.SubmitAndRelease( bucket );
                     self->ReleaseThreads();
                 }
                 else

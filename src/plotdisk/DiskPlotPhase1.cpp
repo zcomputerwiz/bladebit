@@ -176,7 +176,7 @@ void DiskPlotPhase1::Run()
 #if _DEBUG && BB_DP_P1_SKIP_TO_TABLE
     FP:
 #endif
-
+exit( 0 );
     ForwardPropagate();
 
     // Check all table counts

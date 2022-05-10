@@ -66,6 +66,8 @@ struct DiskPlotContext
     uint32       bucketCounts[(uint)TableId::_Count][BB_DP_MAX_BUCKET_COUNT+1];
     uint64       entryCounts [(uint)TableId::_Count];
 
+    uint32       bucketSlices[BB_DP_MAX_BUCKET_COUNT][BB_DP_MAX_BUCKET_COUNT];
+
     // Since back pointer table entries are not sorted along with y,
     // (instead we use a mapping table), and since their values are stored
     // in local-to-bucket coordinates, we need to know how many entries

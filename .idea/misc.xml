@@ -5,44 +5,48 @@
     <option name="openedFilesInfos">
       <list>
         <OpenedFileInfo>
-          <option name="caretOffset" value="2666" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskBufferQueue.cpp" />
-        </OpenedFileInfo>
-        <OpenedFileInfo>
-          <option name="caretOffset" value="162" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotter.h" />
-        </OpenedFileInfo>
-        <OpenedFileInfo>
-          <option name="caretOffset" value="712" />
+          <option name="caretOffset" value="6116" />
           <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotPhase1.cpp" />
         </OpenedFileInfo>
         <OpenedFileInfo>
-          <option name="caretOffset" value="3367" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotContext.h" />
+          <option name="caretOffset" value="4241" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/BitBucketWriter.h" />
         </OpenedFileInfo>
         <OpenedFileInfo>
-          <option name="caretOffset" value="100" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/util/CliParser.h" />
+          <option name="caretOffset" value="8367" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskF1.h" />
         </OpenedFileInfo>
         <OpenedFileInfo>
-          <option name="caretOffset" value="908" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/main.cpp" />
+          <option name="caretOffset" value="2594" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/.vscode/launch.json" />
         </OpenedFileInfo>
         <OpenedFileInfo>
-          <option name="caretOffset" value="2051" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotPhase2.cpp" />
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="cidr-memory-view://3" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="cidr-memory-view://5" />
         </OpenedFileInfo>
         <OpenedFileInfo>
           <option name="caretOffset" value="758" />
           <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotter.cpp" />
         </OpenedFileInfo>
         <OpenedFileInfo>
-          <option name="caretOffset" value="39" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotBounded.h" />
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="cidr-memory-view://7" />
         </OpenedFileInfo>
         <OpenedFileInfo>
-          <option name="caretOffset" value="308" />
-          <option name="fileUrl" value="file://$PROJECT_DIR$/src/plotdisk/DiskPlotBounded.cpp" />
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="cidr-memory-view://9" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="cidr-memory-view://11" />
+        </OpenedFileInfo>
+        <OpenedFileInfo>
+          <option name="caretOffset" value="0" />
+          <option name="fileUrl" value="file://$PROJECT_DIR$/CMakeLists.txt" />
         </OpenedFileInfo>
       </list>
     </option>
