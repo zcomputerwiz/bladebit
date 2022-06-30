@@ -796,12 +796,28 @@ void DiskBufferQueue::CmdReadBucket( const Command& cmd )
     auto blockBuffer = Span<byte>( (byte*)fileSet.blockBuffer, blockSize );
 
     Span<byte> tempBlock;
+#if _DEBUG
+    // if( elementSize == 8 && fileSet.bucket == 150 ) BBDebugBreak();
+#endif
 
+    // From each bucket (file), read the next slice. 
+    // Each read slice from each bucket  pertains
+    // to the bucket number we are currently reading.
     for( uint32 slice = 0; slice < bucketCount; slice++ )
     {
         const size_t sliceSize   = sliceSizes[slice][fileSet.bucket];
         const size_t readSize    = sliceSize + tempBlock.Length();
         const size_t alignedSize = CDivT( readSize, blockSize ) * blockSize;   // Sizes are written aligned, and must also be read aligned
+
+        #if _DEBUG
+            // if( elementSize == 8 && slice == 41 ) Log::Line( "IN Slice [%u]: %llu", fileSet.bucket, alignedSize / 8 );
+            // if( elementSize == 8  && fileSet.bucket == 150 && slice == 41 )
+            // {
+            //     FileStream* file = (FileStream*)fileSet.files[slice];
+                
+            //     Log::Line( "Bucket 41 @: %llu : %llu", file->Position(), file->Position() / 8 );
+            // }
+        #endif
 
         ReadFromFile( *fileSet.files[slice], alignedSize, readBuffer.Ptr(), nullptr, blockSize, directIO, fileSet.name, fileSet.bucket );
 
@@ -816,8 +832,8 @@ void DiskBufferQueue::CmdReadBucket( const Command& cmd )
             
             const auto   lastBlockOffset = alignedSize - blockSize;         ASSERT( readSize > lastBlockOffset );
             const size_t lastBlockSize   = readSize - lastBlockOffset;
-
-            readBuffer = readBuffer.Slice( lastBlockOffset );
+ 
+            readBuffer = readBuffer.Slice( lastBlockOffset);
             tempBlock  = blockBuffer.Slice( 0, lastBlockSize );
             
             readBuffer.CopyTo( tempBlock, lastBlockSize );

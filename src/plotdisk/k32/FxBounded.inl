@@ -355,9 +355,44 @@ private:
             Span<uint32> yInput     = _y[bucket];
             const uint32 entryCount = yInput.Length();
 
+#if _DEBUG
+            // if constexpr ( rTable == TableId::Table3 )
+            // {
+            //     if( bucket == 150 )
+            //     {
+            //         WaitForFence( self, _metaReadFence, bucket );
+            //         if( self->BeginLockBlock() )
+            //         {
+            //             Span<TMetaIn> metaUnsorted = _meta[bucket].SliceSize( entryCount );
+
+            //             for( uint32 i = 0; i < entryCount; i++ )
+            //             {
+            //                 const TMetaIn meta = metaUnsorted[i];
+            //                 if( yInput[i] == 590498662 )
+            //                     ASSERT(  meta == 12332714105137147097ull );
+            //                 //  BBDebugBreak();
+            //                 // if( meta == 12332714105137147097ull  ) BBDebugBreak();
+            //             }
+            //             // for( uint32 i = 0; i < entryCount; i++ )
+            //             // {
+            //             //     if( yInput[i] == 590498662 )
+            //             //     {
+            //             //         WaitForFence( self, _metaReadFence, bucket );
+            //             //         Span<TMetaIn> metaUnsorted = _meta[bucket].SliceSize( entryCount );
+
+            //             //         const TMetaIn meta = metaUnsorted[i];
+            //             //         ASSERT( meta == 12332714105137147097ull );
+            //             //         BBDebugBreak();
+            //             //     }
+            //             // }
+            //         }
+            //         self->EndLockBlock();
+            //     }
+            // }
+#endif
             Span<uint32> sortKey = _sortKey.SliceSize( entryCount );
             SortY( self, entryCount, yInput.Ptr(), _yTmp.As<uint32>().Ptr(), sortKey.Ptr(), _metaTmp[1].As<uint32>().Ptr() );
-
+            
             ///
             /// Write reverse map, given the previous table's y origin indices
             ///
@@ -933,17 +968,39 @@ private:
         // Count
         for( int64 i = 0; i < entryCount; i++ )
             counts[yIn[i] >> bucketShift]++;
+
+// #if _DEBUG
+//     if constexpr ( rTable == TableId::Table2 )
+//     {
+//         if( bucket == 41 )
+//         {
+//             const uint32 tgtSlice    = 150;
+//             const auto   offsets     = _offsetsMeta[id];
+//                   uint64 startOffset = 0;
+
+//             for( uint32 s = 0; s < tgtSlice; s++ )
+//             {
+                
+//             }
+
+//             BBDebugBreak();
+//         }
+//     }
+// #endif
     
         self->CalculateBlockAlignedPrefixSum<uint32>( _numBuckets, blockSize, counts, pfxSum, ySliceCounts.Ptr(), _offsetsY[id], yAlignedSliceCount.Ptr() );
         self->CalculateBlockAlignedPrefixSum<TMetaOut>( _numBuckets, blockSize, counts, pfxSumMeta, metaSliceCounts.Ptr(), _offsetsMeta[id], metaAlignedSliceCount.Ptr() );
 
 // #if _DEBUG
-//         if( self->IsLastThread() )
+//     if constexpr ( rTable == TableId::Table2 )
+//     {
+//         if( self->IsControlThread() && bucket == 41 )
 //         {
-//             ASSERT( (uint64)pfxSum[_numBuckets-1] < 17200000 );
+//             for( uint32 s = 0; s < _numBuckets; s++ )
+//                 Log::Line( "OUT Slice [%u]: %llu", s, metaAlignedSliceCount[s] );
 //         }
+//     }
 // #endif
-
         // Distribute to buckets
         for( int64 i = 0; i < entryCount; i++ )
         {
@@ -952,6 +1009,26 @@ private:
             const uint32 yDst    = --pfxSum    [yBucket];
             const uint32 metaDst = --pfxSumMeta[yBucket];
 
+#if _DEBUG
+    if constexpr ( rTable == TableId::Table2 )
+    {
+    //             offset += metaAlignedSliceCount[s];
+    //     if( metaIn[i] == 12332714105137147097ull )
+            if( metaIn[i] == 4048993560675989283ull ) BBDebugBreak();
+            if( metaIn[i] == 27654118762531605ull ) BBDebugBreak();
+            
+    //     {
+    //         const uint32 tgtSlice = 150;
+    //               uint64 offset = 0;
+    //         for( uint32 s = 0; s < tgtSlice; s++ )
+    //             offset += metaAlignedSliceCount[s];
+                
+    //         Log::Line( "Target start offset: %llu", offset );
+    //         ASSERT( offset * 8 / blockSize * blockSize / 8 == offset );
+    //         BBDebugBreak();
+    //     }
+    }
+#endif
             yOut   [yDst]    = (uint32)(y & yMask);
             idxOut [yDst]    = idxOffset + (uint32)i;   ASSERT( (uint64)idxOffset + (uint64)i < (1ull << _k) );
             metaOut[metaDst] = metaIn[i];
@@ -1058,15 +1135,29 @@ private:
 
                 input[0] = Swap64( y << 26 | l >> 6  );
                 input[1] = Swap64( l << 58 | r << 26 );
-
+// #TEST
+#if _DEBUG
+// if( y == 44194687466 ) BBDebugBreak();
+#endif
                 // Metadata is just L + R of 8 bytes
                 if constexpr( MetaOutMulti == 2 )
                     mOut = l << 32 | r;
+
+// #if _DEBUG
+// if( mOut == 17025792523002444245 ) BBDebugBreak();
+// if( mOut == 11273920359989880764 ) BBDebugBreak();
+// #endif
             }
             else if constexpr( MetaInMulti == 2 )
             {
                 const uint64 l = metaIn[left ];
                 const uint64 r = metaIn[right];
+#if _DEBUG
+    // if( y == 161651772262 ) BBDebugBreak();
+    if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
+    // if( rTable == TableId::Table3 && (l == 17025792523002444245 || r == 17025792523002444245 ) ) BBDebugBreak();
+    // if( rTable == TableId::Table3 && (l == 11273920359989880764 || r == 11273920359989880764) ) BBDebugBreak();
+#endif
 
                 input[0] = Swap64( y << 26 | l >> 38 );
                 input[1] = Swap64( l << 26 | r >> 38 );
@@ -1103,6 +1194,12 @@ private:
                 input[4] = Swap64( r.m1 << 26 );
             }
 
+// #TEST
+#if _DEBUG
+// if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
+// if( y == 44194687466 ) BBDebugBreak();
+#endif
+
             // Hash the input
             blake3_hasher_init( &hasher );
             blake3_hasher_update( &hasher, input, bufferSize );
@@ -1110,6 +1207,12 @@ private:
 
             const uint64 f = Swap64( *output ) >> yShift;
             yOut[i] = (TYOut)f;
+
+// #TEST
+#if _DEBUG
+    // if( f == 43 ) BBDebugBreak();
+    // if( f == 161651772262 ) BBDebugBreak();
+#endif
 
             if constexpr ( MetaOutMulti == 2 && MetaInMulti == 3 )
             {

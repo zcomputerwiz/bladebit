@@ -81,6 +81,8 @@ public:
 
     inline intptr_t Id() { return (intptr_t)_fd; }
 
+    inline size_t Position() const { return _position; }
+
 private:
     inline bool HasValidFD() const
     {
