@@ -699,5 +699,34 @@ bool Debug::ReadTableCounts( DiskPlotContext& cx )
     #endif
 }
 
+//-----------------------------------------------------------
+void Debug::DumpDPUnboundedY( const TableId table, const uint32 bucket, const DiskPlotContext& context, const Span<uint64> y )
+{
+    if( y.Length() < 1 )
+        return;
 
+    char path[1024];
+    sprintf( path, "%st%d.y-dp-unbounded.tmp", BB_DP_DBG_REF_DIR, (int)table+1 );
+    
+    const FileMode mode = bucket > 0 ? FileMode::Open : FileMode::Create;
+    
+    FileStream file;
+    FatalIf( !file.Open( path, mode, FileAccess::Write ),
+        "Failed to open '%s' for writing.", path );
+
+    FatalIf( !file.Seek( (int64)file.Size(), SeekOrigin::Begin ), "Failed to seek file '%s'.", path );
+    
+    size_t sizeWrite = y.Length() * sizeof( uint64 );
+
+    Span<uint64> yWrite = y;
+    while( sizeWrite )
+    {
+        const ssize_t written = file.Write( yWrite.Ptr(), sizeWrite );
+        FatalIf( written <= 0, "Failed to write with eerror %d to file '%s'.", file.GetError(), path );
+
+        sizeWrite -= (size_t)written;
+
+        yWrite = yWrite.Slice( (size_t)written/sizeof( uint64 ) );
+    }
+}
 

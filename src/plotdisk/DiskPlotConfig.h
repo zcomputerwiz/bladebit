@@ -71,17 +71,28 @@
     // #define BB_DBG_SKIP_P3_S1 1
     // #define BB_DP_DBG_P3_START_TABLE Table7
 
-    #define BB_DP_DBG_P3_KEEP_FILES 1
+    // DiskPlot Unbounded disable writing cross-bucket entries
+    #define BB_DP_DBG_UNBOUNDED_DISABLE_CROSS_BUCKET 1
 
     // For testing correctness: Allow cross-bucket matches.
-    #define BB_DP_FP_MATCH_X_BUCKET 1
+    // #define BB_DP_FP_MATCH_X_BUCKET 1
+
+    // Don't delete temporary files during phase 3
+    #define BB_DP_DBG_P3_KEEP_FILES 1
 
     // Dump pairs written raw and in global form to a file
-    #define BB_DP_DBG_DUMP_PAIRS 1
+    // #define BB_DP_DBG_DUMP_PAIRS 1
     #if BB_DP_DBG_DUMP_PAIRS
         #define BB_DBG_DumpPairs( numBuckets, table, context ) Debug::DumpPairs<numBuckets>( table, context )
     #else
         #define BB_DBG_DumpPairs( numBuckets, table, context )
+    #endif
+
+    #define BB_DP_DBG_UNBOUNDED_DUMP_Y 1
+    #if BB_DP_DBG_UNBOUNDED_DUMP_Y
+        #define BB_DBG_DP_DumpUnboundedY( table, bucket, context, y ) Debug::DumpDPUnboundedY( table, bucket, context, y )
+    #else
+        #define BB_DBG_DP_DumpUnboundedY( table, bucket, context, y )
     #endif
 
     // Validate table pairs against dumped pairs

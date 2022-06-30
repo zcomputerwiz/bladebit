@@ -1014,8 +1014,8 @@ private:
     {
     //             offset += metaAlignedSliceCount[s];
     //     if( metaIn[i] == 12332714105137147097ull )
-            if( metaIn[i] == 4048993560675989283ull ) BBDebugBreak();
-            if( metaIn[i] == 27654118762531605ull ) BBDebugBreak();
+            // if( metaIn[i] == 4048993560675989283ull ) BBDebugBreak();
+            // if( metaIn[i] == 27654118762531605ull ) BBDebugBreak();
             
     //     {
     //         const uint32 tgtSlice = 150;
@@ -1438,7 +1438,7 @@ void DbgValidateY( const TableId table, const FileId fileId, DiskPlotContext& co
     #endif
  )
 {
-    if( table > TableId::Table2 && table < TableId::Table7 )
+    if( table >= TableId::Table2 && table < TableId::Table7 )
     {
         Log::Line( "[DEBUG: Validating table y %u]", table+1 );
 
@@ -1454,7 +1454,7 @@ void DbgValidateY( const TableId table, const FileId fileId, DiskPlotContext& co
         // Load ref
         {
             Log::Line( " Loading ref" );
-            Debug::LoadYRefTable( table, yRef );
+            Debug::LoadRefTableByName( table, "t%d.y-dp-unbounded.tmp", yRef );
         }
 
         // Read our entries
