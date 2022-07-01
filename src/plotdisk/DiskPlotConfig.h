@@ -56,8 +56,8 @@
 // #NOTE: BB_DP_DBG_SKIP_PHASE_1 Must be defined
 // #define BB_DP_DBG_SKIP_TO_C_TABLES 1
 
-// #define BB_DP_P1_SKIP_TO_TABLE 1
-// #define BB_DP_P1_START_TABLE TableId::Table3
+#define BB_DP_P1_SKIP_TO_TABLE 1
+#define BB_DP_P1_START_TABLE TableId::Table3
 
 // Tmp file deletion (useful to keep around when developing)
 #if _DEBUG
@@ -88,7 +88,7 @@
         #define BB_DBG_DumpPairs( numBuckets, table, context )
     #endif
 
-    #define BB_DP_DBG_UNBOUNDED_DUMP_Y 1
+    // #define BB_DP_DBG_UNBOUNDED_DUMP_Y 1
     #if BB_DP_DBG_UNBOUNDED_DUMP_Y
         #define BB_DBG_DP_DumpUnboundedY( table, bucket, context, y ) Debug::DumpDPUnboundedY( table, bucket, context, y )
     #else

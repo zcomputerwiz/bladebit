@@ -1154,7 +1154,7 @@ private:
                 const uint64 r = metaIn[right];
 #if _DEBUG
     // if( y == 161651772262 ) BBDebugBreak();
-    if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
+    // if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
     // if( rTable == TableId::Table3 && (l == 17025792523002444245 || r == 17025792523002444245 ) ) BBDebugBreak();
     // if( rTable == TableId::Table3 && (l == 11273920359989880764 || r == 11273920359989880764) ) BBDebugBreak();
 #endif
@@ -1197,7 +1197,7 @@ private:
 // #TEST
 #if _DEBUG
 // if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
-// if( y == 44194687466 ) BBDebugBreak();
+if( y == 43 ) BBDebugBreak();
 #endif
 
             // Hash the input
@@ -1438,7 +1438,7 @@ void DbgValidateY( const TableId table, const FileId fileId, DiskPlotContext& co
     #endif
  )
 {
-    if( table >= TableId::Table2 && table < TableId::Table7 )
+    if( table >= TableId::Table3 && table < TableId::Table7 )
     {
         Log::Line( "[DEBUG: Validating table y %u]", table+1 );
 
@@ -1448,14 +1448,15 @@ void DbgValidateY( const TableId table, const FileId fileId, DiskPlotContext& co
         ioQueue.SeekBucket( fileId, 0, SeekOrigin::Begin );
         ioQueue.CommitCommands();
 
-        Span<uint64> yRef = bbcvirtallocboundednuma_span<uint64>( 1ull << 32 );// context.entryCounts[(int)table] ); //_yRef.SliceSize( context.entryCounts[(int)table] );
-        Span<uint64> yTmp = bbcvirtallocboundednuma_span<uint64>( yRef.Length() );
-
+        Span<uint64> yRef;
         // Load ref
         {
             Log::Line( " Loading ref" );
-            Debug::LoadRefTableByName( table, "t%d.y-dp-unbounded.tmp", yRef );
+            // Debug::LoadRefTableByName( table, "t%d.y-dp-unbounded.tmp", yRef );
+            Debug::LoadDPUnboundedY( table, yRef );
         }
+
+        Span<uint64> yTmp = bbcvirtallocboundednuma_span<uint64>( yRef.Length() );
 
         // Read our entries
         {

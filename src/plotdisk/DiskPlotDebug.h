@@ -65,6 +65,7 @@ namespace Debug
     bool ReadTableCounts( DiskPlotContext& context );
 
     void DumpDPUnboundedY( const TableId table, const uint32 bucket, const DiskPlotContext& context, const Span<uint64> y );
+    void LoadDPUnboundedY( const TableId table, Span<uint64>& y );
 }
 
 template<TableId table, uint32 numBuckets, typename TYOut>

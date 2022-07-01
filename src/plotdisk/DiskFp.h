@@ -297,7 +297,7 @@ public:
 
         WriteMap( bucket, inEntryCount, map, (uint64*)_meta[1] );
 
-        BB_DBG_DP_DumpUnboundedY( table, bucket, _context, Span<uint64>( y, inEntryCount ) );
+        BB_DBG_DP_DumpUnboundedY( table-1, bucket, _context, Span<uint64>( y, inEntryCount ) );
 
         const TMetaIn* inMeta = ( table == TableId::Table2 ) ? (TMetaIn*)map : meta;
 
