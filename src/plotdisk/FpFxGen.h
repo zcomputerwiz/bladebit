@@ -153,6 +153,9 @@ struct FpFxGen
 
             const uint64 f = Swap64( *output ) >> yShift;
             yOut[i] = (TYOut)f;
+#if _DEBUG
+    if( f == 43 || f == 73 ) BBDebugBreak();
+#endif
 
             if constexpr ( MetaOutMulti == 2 && MetaInMulti == 3 )
             {

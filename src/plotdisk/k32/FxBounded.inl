@@ -16,12 +16,19 @@
 
     #define _VALIDATE_Y 1
     #if _VALIDATE_Y
-        // uint32       _refBucketCounts[BB_DP_MAX_BUCKET_COUNT];
+        uint32       _dbgBucketCounts[BB_DP_MAX_BUCKET_COUNT] = {};
         // Span<uint64> _yRef;
         // Span<uint64> _yRefWriter;
+        Span<uint32> _dbgY;
+        Span<uint64> _dbgMeta;
+        Span<uint32> _dbgYWriter;
+        Span<uint64> _dbgMetaWriter;
+        Span<uint32> _dbgYReader;
+        Span<uint64> _dbgMetaReader;
+
         
-        template<uint32 _numBuckets>
-        void DbgValidateY( const TableId table, const FileId fileId, DiskPlotContext& context
+        template<uint32 _numBuckets, TableId table>
+        void DbgValidateY( const FileId fileId, DiskPlotContext& context
             #if BB_DP_FP_MATCH_X_BUCKET
             ,const Span<K32CrossBucketEntries> crossBucketEntriesIn
             #endif
@@ -41,7 +48,7 @@ typedef uint32 K32Meta1;
 typedef uint64 K32Meta2;
 // struct K32Meta3 { uint32 m0, m1, m2; };
 struct K32Meta3 { uint64 m0, m1; };
-struct K32Meta4 { uint64 m0, m1; };
+struct K32Meta4 { uint64 m0, m1; };  
 struct K32NoMeta {};
 
 template<TableId rTable>
@@ -81,7 +88,7 @@ public:
         , _ioQueue       ( *context.ioQueue )
         , _matcher       ( _numBuckets )
         , _yReadFence    ( context.fencePool ? context.fencePool->RequireFence() : *(Fence*)nullptr )
-        , _metaReadFence ( context.fencePool ? context.fencePool->RequireFence() : *(Fence*)nullptr )
+        , _metaReadFence ( *new Fence() ) //context.fencePool ? context.fencePool->RequireFence() : *(Fence*)nullptr )
         , _indexReadFence( context.fencePool ? context.fencePool->RequireFence() : *(Fence*)nullptr )
         , _fxWriteFence  ( context.fencePool ? context.fencePool->RequireFence() : *(Fence*)nullptr )
         , _pairWriteFence( context.fencePool ? context.fencePool->RequireFence() : *(Fence*)nullptr )
@@ -327,7 +334,7 @@ public:
             // ValidateIndices();
         
             #if _VALIDATE_Y
-                DbgValidateY<_numBuckets>( rTable, _yId[1], _context
+                DbgValidateY<_numBuckets, rTable>( _yId[1], _context
                     #if BB_DP_FP_MATCH_X_BUCKET
                     , _crossBucketEntriesOut
                     #endif
@@ -352,72 +359,29 @@ private:
             ReadNextBucket( self, bucket + 1 ); // Read next bucket in background
             WaitForFence( self, _yReadFence, bucket );
 
+            if constexpr ( rTable == TableId::Table3 )
+            {
+                if( self->BeginLockBlock() )
+                {
+                    if( bucket == 0 )
+                        _dbgYReader = _dbgY;
+
+                    const uint32 len = _y[bucket].Length();
+
+                    // Span<uint32> yRef = _dbgYReader.SliceSize( len );
+                    // ASSERT( yRef.EqualElements(_y[bucket] ) );
+
+                    _dbgYReader.CopyTo( _y[bucket], len );
+                    _dbgYReader = _dbgYReader.Slice( len );
+                }
+                self->EndLockBlock();
+            }
+
             Span<uint32> yInput     = _y[bucket];
             const uint32 entryCount = yInput.Length();
 
-#if _DEBUG
-            // if constexpr ( rTable == TableId::Table3 )
-            // {
-            //     if( bucket == 150 )
-            //     {
-            //         WaitForFence( self, _metaReadFence, bucket );
-            //         if( self->BeginLockBlock() )
-            //         {
-            //             Span<TMetaIn> metaUnsorted = _meta[bucket].SliceSize( entryCount );
-
-            //             for( uint32 i = 0; i < entryCount; i++ )
-            //             {
-            //                 const TMetaIn meta = metaUnsorted[i];
-            //                 if( yInput[i] == 590498662 )
-            //                     ASSERT(  meta == 12332714105137147097ull );
-            //                 //  BBDebugBreak();
-            //                 // if( meta == 12332714105137147097ull  ) BBDebugBreak();
-            //             }
-            //             // for( uint32 i = 0; i < entryCount; i++ )
-            //             // {
-            //             //     if( yInput[i] == 590498662 )
-            //             //     {
-            //             //         WaitForFence( self, _metaReadFence, bucket );
-            //             //         Span<TMetaIn> metaUnsorted = _meta[bucket].SliceSize( entryCount );
-
-            //             //         const TMetaIn meta = metaUnsorted[i];
-            //             //         ASSERT( meta == 12332714105137147097ull );
-            //             //         BBDebugBreak();
-            //             //     }
-            //             // }
-            //         }
-            //         self->EndLockBlock();
-            //     }
-            // }
-#endif
             Span<uint32> sortKey = _sortKey.SliceSize( entryCount );
             SortY( self, entryCount, yInput.Ptr(), _yTmp.As<uint32>().Ptr(), sortKey.Ptr(), _metaTmp[1].As<uint32>().Ptr() );
-            
-            ///
-            /// Write reverse map, given the previous table's y origin indices
-            ///
-            if constexpr ( rTable > TableId::Table2 )
-            {
-                WaitForFence( self, _indexReadFence, bucket );
-
-                Span<uint32> unsortedIndices = _index[bucket];       ASSERT( unsortedIndices.Length() == entryCount );
-                Span<uint32> indices         = _metaTmp[1].As<uint32>().SliceSize( entryCount );
-
-                #if (_DEBUG && DBG_VALIDATE_INDICES)
-                    if( self->BeginLockBlock() )
-                    {
-                        // indices.CopyTo( _dbgIndices.Slice( _dbgIdxCount, entryCount ) );
-                        unsortedIndices.CopyTo( _dbgIndices.Slice( _dbgIdxCount, entryCount ) );
-                        
-                        _dbgIdxCount += entryCount;
-                    }
-                    self->EndLockBlock();
-                #endif
-
-                SortOnYKey( self, sortKey, unsortedIndices, indices );
-                WriteMap( self, bucket, indices, _mapWriteBuffer, _mapOffset );
-            }
-
 
             ///
             /// Match
@@ -436,35 +400,24 @@ private:
 
             ASSERT( totalMatches <= _entriesPerBucket );
 
-            // #TEST
-            #if _DEBUG
-            //     if( self->IsControlThread() )
-            //         Log::Line( " [%3u] : %u", bucket, totalMatches );
-            #endif
-
-            // Prevent overflow entries
-            const uint64 tableEntryCount = _tableEntryCount;
-            if( bucket == _numBuckets-1 && (tableEntryCount + totalMatches) > _maxTableEntries )
-            {
-                // Prevent calculating fx for overflow matches
-                if( self->IsLastThread() )
-                {
-                    const uint32 overflowEntries = (uint32)( (tableEntryCount + totalMatches) - _maxTableEntries );
-                    ASSERT( overflowEntries < matches.Length() );
-
-                    matches = matches.SliceSize( matches.Length() - overflowEntries );
-                }
-
-                totalMatches = _maxTableEntries;
-            }
-
-            WritePairs( self, bucket, totalMatches, matches, matchOffset );
-
             ///
             /// Sort meta on Y
             ///
             WaitForFence( self, _metaReadFence, bucket );
     
+            if constexpr ( rTable == TableId::Table3 )
+            {
+                if( self->BeginLockBlock() )
+                {
+                    if( bucket == 0 )
+                        _dbgMetaReader = _dbgMeta;
+
+                    _dbgMetaReader.CopyTo( _meta[bucket], entryCount );
+                    _dbgMetaReader = _dbgMetaReader.Slice( entryCount );
+                }
+                self->EndLockBlock();
+            }
+
             Span<TMetaIn> metaUnsorted = _meta[bucket].SliceSize( entryCount );                 ASSERT( metaUnsorted.Length() == entryCount );
             Span<TMetaIn> metaIn       = _metaTmp[0].As<TMetaIn>().SliceSize( entryCount );
 
@@ -476,69 +429,23 @@ private:
                     _xWriteBuffer = Span<TMetaIn>( _xWriter.GetNextBuffer( _tableIOWait ), entryCount );
                 self->EndLockBlock();
 
-                // Grap shared buffer
+                // Grab shared buffer
                 metaIn = _xWriteBuffer;
             }
 
+
             SortOnYKey( self, sortKey, metaUnsorted, metaIn );
-
-            #if BB_DP_FP_MATCH_X_BUCKET
-                SaveCrossBucketMetadata( self, bucket, metaIn );
-            #endif
             
-            // On Table 2, metadata is our x values, which have to be saved as table 1
-            if constexpr ( rTable == TableId::Table2 )
-            {
-                // Write (sorted-on-y) x back to disk
-                if( self->BeginLockBlock() )
-                {
-                    #if DBG_VALIDATE_TABLES
-                        _dbgPlot.WriteYX( bucket, yInput, metaIn );
-                    #endif
-
-                    _xWriter.SubmitBuffer( _ioQueue, entryCount );
-                    if( bucket == _numBuckets - 1 )
-                        _xWriter.SubmitFinalBlock( _ioQueue );
-                }
-                self->EndLockBlock();
-            }
-
             /// Gen fx & write
             {
                 Span<TYOut>    yOut    = _yTmp.As<TYOut>().Slice( matchOffset, matches.Length() );
-                Span<TMetaOut> metaOut = _metaTmp[1].As<TMetaOut>().Slice( matchOffset, matches.Length() );  //( (TMetaOut*)metaTmp.Ptr(), matches.Length() );
-
-                TimePoint timer;
-                if( self->IsControlThread() )
-                    timer = TimerBegin();
-
-                // Generate fx for cross-bucket matches, and save the matches to an in-memory buffer
-                #if BB_DP_FP_MATCH_X_BUCKET
-                    if( bucket > 0 )
-                        GenCrossBucketFx( self, bucket-1 );
-                #endif
+                Span<TMetaOut> metaOut = _metaTmp[1].As<TMetaOut>().Slice( matchOffset, matches.Length() );
 
                 GenFx( self, bucket, matches, yInput, metaIn, yOut, metaOut );
                 self->SyncThreads();
 
-                if( self->IsControlThread() )
-                    _fxTime += TimerEndTicks( timer );
-
-                #if _VALIDATE_Y
-                // if( self->IsControlThread() )
-                // {
-                //     if( _yRef.Ptr() == nullptr )
-                //     {
-                //         _yRef = Span<uint64>( bbcvirtallocboundednuma<uint64>( 1ull << 32 ), 1ull << 32 );
-                //         _yRefWriter = _yRef;
-                //     }
-
-                //     _yTmp.SliceSize( totalMatches ).CopyTo( _yRefWriter );
-                //     _yRefWriter = _yRefWriter.Slice( totalMatches );
-                // }
-                #endif
-
                 WriteEntries( self, bucket, (uint32)_tableEntryCount + matchOffset, yOut, metaOut, _yWriteBuffer, _metaWriteBuffer, _indexWriteBuffer );
+                self->SyncThreads();
             }
 
             if( self->IsControlThread() )
@@ -941,6 +848,27 @@ private:
         if( self->IsControlThread() )
             timer = TimerBegin();
 
+        if constexpr ( rTable == TableId::Table2 )
+        {
+            if( self->BeginLockBlock() )
+            {
+                ASSERT( metaIn.Length() == yIn.Length() );
+                
+                if( _dbgY.Ptr() == nullptr )
+                {
+                    _dbgY    = bbcvirtallocboundednuma_span<uint32>( 1ull << 32 );
+                    _dbgMeta = bbcvirtallocboundednuma_span<uint64>( 1ull << 32 );
+                }
+
+                if( bucket == 0 )
+                {
+                    _dbgYWriter    = _dbgY;
+                    _dbgMetaWriter = _dbgMeta;
+                }
+            }
+            self->EndLockBlock();
+        }
+
         const uint32 blockSize = (uint32)_ioQueue.BlockSize( _yId[1] );
         const uint32 id        = (uint32)self->JobId();
 
@@ -969,38 +897,33 @@ private:
         for( int64 i = 0; i < entryCount; i++ )
             counts[yIn[i] >> bucketShift]++;
 
-// #if _DEBUG
-//     if constexpr ( rTable == TableId::Table2 )
-//     {
-//         if( bucket == 41 )
-//         {
-//             const uint32 tgtSlice    = 150;
-//             const auto   offsets     = _offsetsMeta[id];
-//                   uint64 startOffset = 0;
+        if constexpr ( rTable == TableId::Table2 )
+        {
+            auto writeY    = _dbgYWriter   ;//.SliceSize( yIn.Length() );
+            auto writeMeta = _dbgMetaWriter;//.SliceSize( yIn.Length() );
 
-//             for( uint32 s = 0; s < tgtSlice; s++ )
-//             {
-                
-//             }
+            self->CalculatePrefixSum( _numBuckets, counts, pfxSum, ySliceCounts.Ptr() );
+            for( int64 i = 0; i < entryCount; i++ )
+            {
+                const TYOut  y       = yIn[i];
+                const uint32 yBucket = (uint32)(y >> bucketShift);
+                const uint32 yDst    = --pfxSum    [yBucket];
 
-//             BBDebugBreak();
-//         }
-//     }
-// #endif
+                writeY   [yDst] = (uint32)(y & yMask);
+                writeMeta[yDst] = metaIn[i];
+            }
+
+            if( self->BeginLockBlock() )
+            {
+                _dbgYWriter    = _dbgYWriter.Slice( yIn.Length() );
+                _dbgMetaWriter = _dbgMetaWriter.Slice( metaIn.Length() );
+            }
+            self->EndLockBlock();
+        }
     
         self->CalculateBlockAlignedPrefixSum<uint32>( _numBuckets, blockSize, counts, pfxSum, ySliceCounts.Ptr(), _offsetsY[id], yAlignedSliceCount.Ptr() );
         self->CalculateBlockAlignedPrefixSum<TMetaOut>( _numBuckets, blockSize, counts, pfxSumMeta, metaSliceCounts.Ptr(), _offsetsMeta[id], metaAlignedSliceCount.Ptr() );
 
-// #if _DEBUG
-//     if constexpr ( rTable == TableId::Table2 )
-//     {
-//         if( self->IsControlThread() && bucket == 41 )
-//         {
-//             for( uint32 s = 0; s < _numBuckets; s++ )
-//                 Log::Line( "OUT Slice [%u]: %llu", s, metaAlignedSliceCount[s] );
-//         }
-//     }
-// #endif
         // Distribute to buckets
         for( int64 i = 0; i < entryCount; i++ )
         {
@@ -1009,26 +932,6 @@ private:
             const uint32 yDst    = --pfxSum    [yBucket];
             const uint32 metaDst = --pfxSumMeta[yBucket];
 
-#if _DEBUG
-    if constexpr ( rTable == TableId::Table2 )
-    {
-    //             offset += metaAlignedSliceCount[s];
-    //     if( metaIn[i] == 12332714105137147097ull )
-            // if( metaIn[i] == 4048993560675989283ull ) BBDebugBreak();
-            // if( metaIn[i] == 27654118762531605ull ) BBDebugBreak();
-            
-    //     {
-    //         const uint32 tgtSlice = 150;
-    //               uint64 offset = 0;
-    //         for( uint32 s = 0; s < tgtSlice; s++ )
-    //             offset += metaAlignedSliceCount[s];
-                
-    //         Log::Line( "Target start offset: %llu", offset );
-    //         ASSERT( offset * 8 / blockSize * blockSize / 8 == offset );
-    //         BBDebugBreak();
-    //     }
-    }
-#endif
             yOut   [yDst]    = (uint32)(y & yMask);
             idxOut [yDst]    = idxOffset + (uint32)i;   ASSERT( (uint64)idxOffset + (uint64)i < (1ull << _k) );
             metaOut[metaDst] = metaIn[i];
@@ -1153,7 +1056,8 @@ private:
                 const uint64 l = metaIn[left ];
                 const uint64 r = metaIn[right];
 #if _DEBUG
-    // if( y == 161651772262 ) BBDebugBreak();
+    // if( y == 161651772262 ) ASSERT( l == 12332714105137147097ull );
+    // if( y == 108463750594 ) ASSERT( l == 8628484515508147056ull );
     // if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
     // if( rTable == TableId::Table3 && (l == 17025792523002444245 || r == 17025792523002444245 ) ) BBDebugBreak();
     // if( rTable == TableId::Table3 && (l == 11273920359989880764 || r == 11273920359989880764) ) BBDebugBreak();
@@ -1195,10 +1099,10 @@ private:
             }
 
 // #TEST
-#if _DEBUG
-// if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
-if( y == 43 ) BBDebugBreak();
-#endif
+// #if _DEBUG
+// // if( rTable == TableId::Table3 && y == 161651772262 ) BBDebugBreak();
+// if( y == 43 ) BBDebugBreak();
+// #endif
 
             // Hash the input
             blake3_hasher_init( &hasher );
@@ -1431,14 +1335,16 @@ public:
 #if _VALIDATE_Y
 
 //-----------------------------------------------------------
-template<uint32 _numBuckets>
-void DbgValidateY( const TableId table, const FileId fileId, DiskPlotContext& context
+template<uint32 _numBuckets, TableId table>
+void DbgValidateY( const FileId fileId, DiskPlotContext& context
     #if BB_DP_FP_MATCH_X_BUCKET
         ,const Span<K32CrossBucketEntries> crossBucketEntriesIn
     #endif
  )
 {
-    if( table >= TableId::Table3 && table < TableId::Table7 )
+    using TMeta = typename K32MetaType<table>::Out;
+
+    if( table > TableId::Table2 && table < TableId::Table7 )
     {
         Log::Line( "[DEBUG: Validating table y %u]", table+1 );
 
