@@ -19,12 +19,10 @@
         uint32       _dbgBucketCounts[BB_DP_MAX_BUCKET_COUNT] = {};
         // Span<uint64> _yRef;
         // Span<uint64> _yRefWriter;
-        Span<uint32> _dbgY;
-        Span<uint64> _dbgMeta;
-        Span<uint32> _dbgYWriter;
-        Span<uint64> _dbgMetaWriter;
-        Span<uint32> _dbgYReader;
-        Span<uint64> _dbgMetaReader;
+        Span<uint32> _dbgY         [BB_DP_MAX_BUCKET_COUNT] = {};
+        Span<uint64> _dbgMeta      [BB_DP_MAX_BUCKET_COUNT] = {};
+        Span<uint32> _dbgYWriter   [BB_DP_MAX_BUCKET_COUNT] = {};
+        Span<uint64> _dbgMetaWriter[BB_DP_MAX_BUCKET_COUNT] = {};
 
         
         template<uint32 _numBuckets, TableId table>
@@ -359,23 +357,16 @@ private:
             ReadNextBucket( self, bucket + 1 ); // Read next bucket in background
             WaitForFence( self, _yReadFence, bucket );
 
-            if constexpr ( rTable == TableId::Table3 )
-            {
-                if( self->BeginLockBlock() )
-                {
-                    if( bucket == 0 )
-                        _dbgYReader = _dbgY;
-
-                    const uint32 len = _y[bucket].Length();
-
-                    // Span<uint32> yRef = _dbgYReader.SliceSize( len );
-                    // ASSERT( yRef.EqualElements(_y[bucket] ) );
-
-                    _dbgYReader.CopyTo( _y[bucket], len );
-                    _dbgYReader = _dbgYReader.Slice( len );
-                }
-                self->EndLockBlock();
-            }
+            // if constexpr ( rTable == TableId::Table3 )
+            // {
+            //     if( self->BeginLockBlock() )
+            //     {
+            //         const uint32 len = _y[bucket].Length();
+            //         ASSERT( len == _dbgY[bucket].Length() );
+            //         _dbgY[bucket].CopyTo( _y[bucket] );
+            //     }
+            //     self->EndLockBlock();
+            // }
 
             Span<uint32> yInput     = _y[bucket];
             const uint32 entryCount = yInput.Length();
@@ -409,11 +400,12 @@ private:
             {
                 if( self->BeginLockBlock() )
                 {
-                    if( bucket == 0 )
-                        _dbgMetaReader = _dbgMeta;
+                    ASSERT( _dbgMeta[bucket].Length() == entryCount );
 
-                    _dbgMetaReader.CopyTo( _meta[bucket], entryCount );
-                    _dbgMetaReader = _dbgMetaReader.Slice( entryCount );
+                    for( uint32 i = 0; i < entryCount; i++ )
+                        ASSERT( _dbgMeta[bucket][i] == _meta[bucket][i] );
+
+                    // _dbgMeta[bucket].CopyTo( _meta[bucket] );
                 }
                 self->EndLockBlock();
             }
@@ -854,16 +846,18 @@ private:
             {
                 ASSERT( metaIn.Length() == yIn.Length() );
                 
-                if( _dbgY.Ptr() == nullptr )
+                if( _dbgY[0].Ptr() == nullptr )
                 {
-                    _dbgY    = bbcvirtallocboundednuma_span<uint32>( 1ull << 32 );
-                    _dbgMeta = bbcvirtallocboundednuma_span<uint64>( 1ull << 32 );
-                }
-
-                if( bucket == 0 )
-                {
-                    _dbgYWriter    = _dbgY;
-                    _dbgMetaWriter = _dbgMeta;
+                    const uint64 bucketLength = (uint64)( ( ( 1ull << 32 ) / _numBuckets ) * BB_DP_XTRA_ENTRIES_PER_BUCKET );
+                    for( uint32 i = 0; i < _numBuckets; i++ )
+                    {
+                        _dbgY   [i] = bbcvirtallocboundednuma_span<uint32>( bucketLength );
+                        _dbgMeta[i] = bbcvirtallocboundednuma_span<uint64>( bucketLength );
+                        _dbgYWriter   [i] = _dbgY   [i];
+                        _dbgMetaWriter[i] = _dbgMeta[i];
+                        _dbgY   [i].length = 0;
+                        _dbgMeta[i].length = 0;
+                    }
                 }
             }
             self->EndLockBlock();
@@ -886,6 +880,8 @@ private:
         uint32 pfxSum    [_numBuckets];
         uint32 pfxSumMeta[_numBuckets];
 
+        uint32 offsets[_numBuckets];
+
         const uint32 sliceIdx = bucket & 1; // % 2
 
         Span<uint32> ySliceCounts          = _sliceCountY[sliceIdx];
@@ -897,33 +893,79 @@ private:
         for( int64 i = 0; i < entryCount; i++ )
             counts[yIn[i] >> bucketShift]++;
 
+        if( bucket > 0 )
+        {
+            if( self->BeginLockBlock() )
+                _fxWriteFence.Wait( bucket, _tableIOWait );
+            self->EndLockBlock();
+        }
+
         if constexpr ( rTable == TableId::Table2 )
         {
-            auto writeY    = _dbgYWriter   ;//.SliceSize( yIn.Length() );
-            auto writeMeta = _dbgMetaWriter;//.SliceSize( yIn.Length() );
+        //     auto writeY    = yOut   ;//.SliceSize( yIn.Length() );
+        //     auto writeMeta = metaOut;//.SliceSize( yIn.Length() );
 
-            self->CalculatePrefixSum( _numBuckets, counts, pfxSum, ySliceCounts.Ptr() );
-            for( int64 i = 0; i < entryCount; i++ )
-            {
-                const TYOut  y       = yIn[i];
-                const uint32 yBucket = (uint32)(y >> bucketShift);
-                const uint32 yDst    = --pfxSum    [yBucket];
+        //     self->CalculatePrefixSum( _numBuckets, counts, pfxSum, ySliceCounts.Ptr() );
+        //     for( int64 i = 0; i < entryCount; i++ )
+        //     {
+        //         const TYOut  y       = yIn[i];
+        //         const uint32 yBucket = (uint32)(y >> bucketShift);
+        //         const uint32 yDst    = --pfxSum    [yBucket];
 
-                writeY   [yDst] = (uint32)(y & yMask);
-                writeMeta[yDst] = metaIn[i];
-            }
+        //         writeY   [yDst] = (uint32)(y & yMask);
+        //         writeMeta[yDst] = metaIn[i];
+        //     }
 
             if( self->BeginLockBlock() )
             {
-                _dbgYWriter    = _dbgYWriter.Slice( yIn.Length() );
-                _dbgMetaWriter = _dbgMetaWriter.Slice( metaIn.Length() );
+        //         // Copy values to buckets
+        //         uint32 totalCounts = 0;
+        //         for( uint32 i = 0; i < _numBuckets; i++ )
+        //             totalCounts += ySliceCounts[i];
+
+        //         Span<uint32> yReader    = yOut;
+        //         Span<uint64> metaReader = metaOut;
+
+        //         for( uint32 i = 0; i < _numBuckets; i++ )
+        //         {
+        //             const uint32 copyCount = ySliceCounts[i];
+
+        //             yReader   .CopyTo( _dbgYWriter   [i], copyCount );
+        //             metaReader.CopyTo( _dbgMetaWriter[i], copyCount );
+                    
+        //             _dbgYWriter   [i] = _dbgYWriter   [i].Slice( copyCount );
+        //             _dbgMetaWriter[i] = _dbgMetaWriter[i].Slice( copyCount );
+
+        //             yReader    = yReader   .Slice( copyCount );
+        //             metaReader = metaReader.Slice( copyCount );
+
+        //             _dbgY   [i].length += copyCount;
+        //             _dbgMeta[i].length += copyCount;
+        //         }
+
+                yOut.ZeroOutElements();
+                metaOut.ZeroOutElements();
             }
             self->EndLockBlock();
         }
+
+        if constexpr ( rTable == TableId::Table2 )
+        {
+            memcpy( offsets, _offsetsMeta[id], sizeof( offsets ) );
+        }
+
     
         self->CalculateBlockAlignedPrefixSum<uint32>( _numBuckets, blockSize, counts, pfxSum, ySliceCounts.Ptr(), _offsetsY[id], yAlignedSliceCount.Ptr() );
         self->CalculateBlockAlignedPrefixSum<TMetaOut>( _numBuckets, blockSize, counts, pfxSumMeta, metaSliceCounts.Ptr(), _offsetsMeta[id], metaAlignedSliceCount.Ptr() );
 
+        // if( bucket > 0 )
+        // {
+        //     if( self->BeginLockBlock() )
+        //         _fxWriteFence.Wait( bucket, _tableIOWait );
+        //     self->EndLockBlock();
+        // }
+
+                
         // Distribute to buckets
         for( int64 i = 0; i < entryCount; i++ )
         {
@@ -932,17 +974,61 @@ private:
             const uint32 yDst    = --pfxSum    [yBucket];
             const uint32 metaDst = --pfxSumMeta[yBucket];
 
+            if constexpr ( rTable == TableId::Table2 )
+            {
+                ASSERT( yOut[yDst] == 0 );
+                ASSERT( metaOut[metaDst] == 0 );
+            }
+
             yOut   [yDst]    = (uint32)(y & yMask);
             idxOut [yDst]    = idxOffset + (uint32)i;   ASSERT( (uint64)idxOffset + (uint64)i < (1ull << _k) );
             metaOut[metaDst] = metaIn[i];
+        }
+
+        Span<uint64> _dummyMeta;
+        if constexpr ( rTable == TableId::Table2 )
+        {
+            // Copy the actual metadata
+            if( self->BeginLockBlock() )
+            {
+                const uint32 metaPerBlock = blockSize / sizeof( TMetaOut );
+
+                Span<uint64> metaReader = metaOut;
+                size_t writeSize = 0;
+                for( uint32 i = 0; i < _numBuckets; i++ )
+                {
+                    const uint32 copyCount    = ySliceCounts[i];
+                    const uint32 alignedCount = RoundUpToNextBoundaryT( copyCount + offsets[i], metaPerBlock );
+
+                    ASSERT( metaAlignedSliceCount[i] == alignedCount );
+                    ASSERT( metaSliceCounts[i] == ySliceCounts[i] );
+                    
+                    metaReader.Slice( offsets[i] ).CopyTo( _dbgMetaWriter[i], copyCount );
+
+                    _dbgMetaWriter[i] = _dbgMetaWriter[i].Slice( copyCount );
+                    _dbgMeta[i].length += copyCount;
+
+                    metaReader = metaReader.Slice( alignedCount );
+
+                    writeSize += alignedCount;
+                }
+
+                // _dummyMeta = bbcvirtallocboundednuma_span<uint64>( writeSize );
+                // metaOut.CopyTo( _dummyMeta, writeSize );
+
+                writeSize *= sizeof( TMetaOut );
+                Log::Line( "FX [%u] WriteSize: %llu", bucket, writeSize );
+            }
+            self->EndLockBlock();
         }
 
         // Write to disk
         if( self->BeginLockBlock() )
         {
             // #TODO: Either use a spin wait or have all threads suspend here
-            if( bucket > 0 )
-                _fxWriteFence.Wait( bucket, _tableIOWait ); 
+            // #TODO: Dual buffer here?
+            // if( bucket > 0 )
+            //     _fxWriteFence.Wait( bucket, _tableIOWait ); 
 
             const FileId yId    = _yId   [1];
             const FileId metaId = _metaId[1];
@@ -952,9 +1038,17 @@ private:
 
             _ioQueue.WriteBucketElementsT<uint32>  ( yId   , yOut   .Ptr(),  yAlignedSliceCount.Ptr()   , ySliceCounts.Ptr() );
             _ioQueue.WriteBucketElementsT<uint32>  ( idxId , idxOut .Ptr(),  yAlignedSliceCount.Ptr()   , ySliceCounts.Ptr() );
-            _ioQueue.WriteBucketElementsT<TMetaOut>( metaId, metaOut.Ptr(),  metaAlignedSliceCount.Ptr(), metaSliceCounts.Ptr() );  // #TODO: Can use ySliceCounts here...
+            _ioQueue.WriteBucketElementsT<TMetaOut>( metaId, metaOut.Ptr(),  metaAlignedSliceCount.Ptr(), ySliceCounts.Ptr() );
             _ioQueue.SignalFence( _fxWriteFence, bucket+1 );
             _ioQueue.CommitCommands();
+
+
+            // if constexpr ( rTable == TableId::Table2 )
+            // {
+            //     // _fxWriteFence.Wait( bucket+1 );
+            //     ASSERT( _dummyMeta.EqualElements( metaOut.SliceSize( _dummyMeta.Length() ) ) );
+            //     bbvirtfreebounded( _dummyMeta.Ptr() );
+            // }
 
             // Save bucket counts
             for( uint32 i = 0; i < _numBuckets; i++ )
