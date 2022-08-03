@@ -628,7 +628,7 @@ bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk, const bool isMMXBlockcha
     // 0, 1, 2, 3, 4, 5, 6 farmer, pool, wallet, local, backup key, singleton, pooling authentication key numbers
 
     const uint32 blsSpecNum         = 12381;
-    const uint32 chiaBlockchainPort = isMMXBlockchain ? 11337 : 8444;
+    const uint32 chiaBlockchainPort = isMMXBlockchain ? PLOT_MMX_PORT : 8444;
     const uint32 localIdx           = 3;
 
     bls::PrivateKey ssk = bls::AugSchemeMPL().DeriveChildSk( sk, blsSpecNum );
