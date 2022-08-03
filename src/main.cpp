@@ -32,6 +32,8 @@ extern "C" {
 #define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
 #define PLOT_FILE_FMT_LEN (sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
 
+#define PLOT_MMX_PORT 11337
+
 /// Internal Data Structures
 struct Config
 {
@@ -52,6 +54,7 @@ struct Config
     const char*     plotId             = nullptr;
     const char*     plotMemo           = nullptr;
     bool            showMemo           = false;
+    bool            mmxPlot            = false;
 };
 
 /// Internal Functions
@@ -372,6 +375,10 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
         {
             cfg.disableCpuAffinity = true;
         }
+        else if (check("--mmx"))
+        {
+            cfg.mmxPlot = true;
+        }
         else if( check( "-v" ) || check( "--verbose" ) )
         {
             Log::SetVerbose( true );
@@ -530,6 +537,15 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
         auto plotPkBytes = plotPublicKey.Serialize();
         bytes.insert( bytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
 
+        if ( cfg.mmxPlot )
+        {
+            std::vector<uint8_t> tmp(32 + 4);
+            bls::Util::Hash256(tmp.data(), bytes.data(), bytes.size());
+            const uint32_t port_u32 = PLOT_MMX_PORT;
+            ::memcpy(tmp.data() + 32, &port_u32, 4);
+            bytes = tmp;
+        }
+
         bls::Util::Hash256( plotId, bytes.data(), bytes.size() );
 
         // Gen memo
@@ -554,6 +570,16 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
         auto plotPkBytes = plotPublicKey.Serialize();
 
         plotIdBytes.insert( plotIdBytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
+
+        if ( cfg.mmxPlot )
+        {
+            std::vector<uint8_t> tmp(32 + 4);
+            bls::Util::Hash256(tmp.data(), plotIdBytes.data(), plotIdBytes.size());
+            const uint32_t port_u32 = PLOT_MMX_PORT;
+            ::memcpy(tmp.data() + 32, &port_u32, 4);
+            plotIdBytes = tmp;
+        }
+
         bls::Util::Hash256( plotId, plotIdBytes.data(), plotIdBytes.size() );
 
         // Gen memo
