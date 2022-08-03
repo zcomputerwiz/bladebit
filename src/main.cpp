@@ -243,6 +243,12 @@ int main( int argc, const char* argv[] )
 
             Log::Line( "Plot Memo: %s", memoStr );
         }
+
+        if (cfg.mmxPlot)
+        {
+            Log::Line("This is a MMX Blockchain Plot!!!");
+        }
+
         Log::Line( "" );
 
         // Prepare the request
