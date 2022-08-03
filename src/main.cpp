@@ -32,6 +32,9 @@ extern "C" {
 #define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
 #define PLOT_FILE_FMT_LEN (sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
 
+#define PLOT_MMX_FILE_PREFIX_LEN (sizeof("plot-mmx-k32-2077-11-45-14-19-")-1)
+#define PLOT_MMX_FILE_FMT_LEN (sizeof( "/plot-mmx-k32-2077-11-45-14-19-19a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
+
 #define PLOT_MMX_PORT 11337
 
 /// Internal Data Structures
@@ -63,7 +66,7 @@ bool            HexPKeyToG1Element( const char* hexKey, bls::G1Element& pkey );
 
 ByteSpan        DecodePuzzleHash( const char* poolContractAddress );
 void            GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32], uint16& outMemoSize );
-bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk );
+bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk, const bool isMMXBlockchain );
 bls::G1Element  GeneratePlotPublicKey( const bls::G1Element& localPk, bls::G1Element& farmerPk, const bool includeTaproot );
 
 std::vector<uint8_t> BytesConcat( std::vector<uint8_t> a, std::vector<uint8_t> b, std::vector<uint8_t> c );
@@ -130,6 +133,8 @@ OPTIONS:
  
  --memory-json        : Same as --memory, but formats the output as json.
 
+ --mmx                : Make MMX Blockchain plot (**NOT** compatible with Chia blockchain)
+
  --version            : Display current version.
 )";
 
@@ -147,7 +152,7 @@ int main( int argc, const char* argv[] )
     // Create the plot output path
     size_t outputFolderLen = strlen( cfg.outputFolder );
     
-    char* plotOutPath = new char[outputFolderLen + PLOT_FILE_FMT_LEN];
+    char* plotOutPath = new char[outputFolderLen + cfg.mmxPlot? PLOT_MMX_FILE_FMT_LEN : PLOT_FILE_FMT_LEN];
 
     if( outputFolderLen )
     {
@@ -202,6 +207,7 @@ int main( int argc, const char* argv[] )
         }
 
         // Set the output path
+        if (!cfg.mmxPlot)
         {
             time_t     now = time( nullptr  );
             struct tm* t   = localtime( &now ); ASSERT( t );
@@ -212,6 +218,18 @@ int main( int argc, const char* argv[] )
 
             memcpy( plotOutPath + outputFolderLen + PLOT_FILE_PREFIX_LEN     , plotIdStr, 64 );
             memcpy( plotOutPath + outputFolderLen + PLOT_FILE_PREFIX_LEN + 64, ".plot.tmp", sizeof( ".plot.tmp" ) );
+        }
+        else
+        {
+            time_t     now = time(nullptr);
+            struct tm* t = localtime(&now); ASSERT(t);
+
+            const size_t r = strftime(plotOutPath + outputFolderLen, PLOT_MMX_FILE_FMT_LEN, "plot-mmx-k32-%Y-%m-%d-%H-%M-", t);
+            if (r != PLOT_MMX_FILE_PREFIX_LEN)
+                Fatal("Failed to generate plot file.");
+
+            memcpy(plotOutPath + outputFolderLen + PLOT_MMX_FILE_PREFIX_LEN, plotIdStr, 64);
+            memcpy(plotOutPath + outputFolderLen + PLOT_MMX_FILE_PREFIX_LEN + 64, ".plot.tmp", sizeof(".plot.tmp"));
         }
 
         Log::Line( "Generating plot %d / %d: %s", i+1, cfg.plotCount, plotIdStr );
@@ -516,7 +534,7 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
     SysHost::Random( seed, sizeof( seed ) );
 
     bls::PrivateKey sk      = bls::AugSchemeMPL().KeyGen( bls::Bytes( seed, sizeof( seed ) ) );
-    bls::G1Element  localPk = std::move( MasterSkToLocalSK( sk ) ).GetG1Element();
+    bls::G1Element  localPk = std::move( MasterSkToLocalSK( sk, cfg.mmxPlot ) ).GetG1Element();
 
     // #See: chia-blockchain create_plots.py
     //       The plot public key is the combination of the harvester and farmer keys
@@ -594,7 +612,7 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
 }
 
 //-----------------------------------------------------------
-bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk )
+bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk, const bool isMMXBlockchain)
 {
     // #SEE: chia-blockchain: derive-keys.py
     // EIP 2334 bls key derivation
@@ -604,7 +622,7 @@ bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk )
     // 0, 1, 2, 3, 4, 5, 6 farmer, pool, wallet, local, backup key, singleton, pooling authentication key numbers
 
     const uint32 blsSpecNum         = 12381;
-    const uint32 chiaBlockchainPort = 8444; 
+    const uint32 chiaBlockchainPort = isMMXBlockchain ? 11337 : 8444;
     const uint32 localIdx           = 3;
 
     bls::PrivateKey ssk = bls::AugSchemeMPL().DeriveChildSk( sk, blsSpecNum );
