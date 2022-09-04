@@ -29,8 +29,11 @@ extern "C" {
 #pragma GCC diagnostic pop
 #pragma warning( pop )
 
-#define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
-#define PLOT_FILE_FMT_LEN (sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
+// #define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
+// #define PLOT_FILE_FMT_LEN (sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
+#define PLOT_FILE_PREFIX_LEN (sizeof("plot-mmx-k32-2077-11-45-14-19-")-1)
+#define PLOT_FILE_FMT_LEN (sizeof( "/plot-mmx-k32-2077-11-45-14-19-19a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
+#define PLOT_MMX_PORT 11337
 
 /// Internal Data Structures
 struct Config
@@ -84,6 +87,8 @@ R"(
            This directory must exist.
 
 OPTIONS:
+
+ --mmx                : Plot for MMX. Required to prevent user error with this build.
 
  -h, --help           : Shows this message and exits.
 
@@ -288,6 +293,7 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
     const char* farmerPublicKey     = nullptr;
     const char* poolPublicKey       = nullptr;
     const char* poolContractAddress = nullptr;
+    bool isMMX = false;
 
     for( i = 0; i < argc; i++ )
     {
@@ -297,6 +303,10 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
         {
             PrintUsage();
             exit( 0 );
+        } else if( check( "--mmx"))
+        {
+            isMMX = true;
+            Log::Line("Warning: This will produce only MMX Blockchain Plots. MMX Plots are not compatible with Chia blockchain.");
         }
         else if( check( "-t" ) || check( "--threads") )
         {
@@ -417,6 +427,11 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
             cfg.outputFolder = arg;
         }
     }
+    if ( !isMMX )
+    {
+        Fatal( "--mmx argument is required, as this fork only produces plots not compatible with Chia and must be specified to prevent user error." );
+        exit ( 1 );
+    }
     #undef check
 
 
@@ -530,6 +545,13 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
         auto plotPkBytes = plotPublicKey.Serialize();
         bytes.insert( bytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
 
+        // Make Unique per MMX
+        std::vector<uint8_t> tmp(32 + 4);
+        bls::Util::Hash256(tmp.data(), bytes.data(), bytes.size());
+        const uint32_t port_u32 = PLOT_MMX_PORT;
+        memcpy(tmp.data() + 32, &port_u32, 4);
+        bytes = tmp;
+
         bls::Util::Hash256( plotId, bytes.data(), bytes.size() );
 
         // Gen memo
@@ -554,6 +576,14 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
         auto plotPkBytes = plotPublicKey.Serialize();
 
         plotIdBytes.insert( plotIdBytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
+
+        // Make Unique per MMX
+        std::vector<uint8_t> tmp(32 + 4);
+        bls::Util::Hash256(tmp.data(), plotIdBytes.data(), plotIdBytes.size());
+        const uint32_t port_u32 = PLOT_MMX_PORT;
+        memcpy(tmp.data() + 32, &port_u32, 4);
+        plotIdBytes = tmp;
+
         bls::Util::Hash256( plotId, plotIdBytes.data(), plotIdBytes.size() );
 
         // Gen memo
@@ -575,14 +605,16 @@ bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk )
     // https://eips.ethereum.org/EIPS/eip-2334
     // 12381 = bls spec number
     // 8444  = Chia blockchain number and port number
+    // 11337 = MMX Blockchain number and port number, defined in PLOT_MMX_PORT
     // 0, 1, 2, 3, 4, 5, 6 farmer, pool, wallet, local, backup key, singleton, pooling authentication key numbers
 
     const uint32 blsSpecNum         = 12381;
-    const uint32 chiaBlockchainPort = 8444; 
+    // const uint32 chiaBlockchainPort = 8444;
+    // const uint32 chiaBlockchainPort = 11337;
     const uint32 localIdx           = 3;
 
     bls::PrivateKey ssk = bls::AugSchemeMPL().DeriveChildSk( sk, blsSpecNum );
-    ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, chiaBlockchainPort );
+    ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, PLOT_MMX_PORT );
     ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, localIdx );
     ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, 0        );
 
