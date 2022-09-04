@@ -208,7 +208,7 @@ int main( int argc, const char* argv[] )
             time_t     now = time( nullptr  );
             struct tm* t   = localtime( &now ); ASSERT( t );
             
-            const size_t r = strftime( plotOutPath + outputFolderLen, PLOT_FILE_FMT_LEN, "plot-k32-%Y-%m-%d-%H-%M-", t );
+            const size_t r = strftime( plotOutPath + outputFolderLen, PLOT_FILE_FMT_LEN, "plot-mmx-k32-%Y-%m-%d-%H-%M-", t );
             if( r != PLOT_FILE_PREFIX_LEN )
                 Fatal( "Failed to generate plot file." );
 
