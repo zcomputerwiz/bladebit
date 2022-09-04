@@ -55,7 +55,7 @@ DiskBufferQueue::DiskBufferQueue(
 
     const size_t workDirLen = std::max( _workDir1.length(), _workDir2.length() );
 
-    const size_t PLOT_FILE_LEN = sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" );
+    const size_t PLOT_FILE_LEN = sizeof( "/plot-mmx-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" );
 
     _filePathBuffer    = bbmalloc<char>( workDirLen + PLOT_FILE_LEN );  // Should be enough for all our file names
     _delFilePathBuffer = bbmalloc<char>( workDirLen + PLOT_FILE_LEN );
