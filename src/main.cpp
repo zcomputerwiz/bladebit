@@ -169,6 +169,7 @@ void ParseCommandLine( GlobalPlotConfig& cfg, int argc, const char* argv[] )
     const char* farmerPublicKey     = nullptr;
     const char* poolPublicKey       = nullptr;
     const char* poolContractAddress = nullptr;
+    bool isMMX = false;
 
     DiskPlotter::Config diskCfg = {};
     MemPlotConfig       ramCfg  = {};
@@ -331,6 +332,10 @@ void ParseCommandLine( GlobalPlotConfig& cfg, int argc, const char* argv[] )
             Log::Line( "" );
             PrintUsage();
             exit( 0 );
+        } else if( cli.ArgConsume( "--mmx"))
+        {
+            isMMX = true;
+            Log::Line("Warning: This will produce only MMX Blockchain Plots. MMX Plots are not compatible with Chia blockchain.");
         }
         // else if( cli.ArgMatch( "memplot" ) )
         // {
@@ -340,6 +345,12 @@ void ParseCommandLine( GlobalPlotConfig& cfg, int argc, const char* argv[] )
         {
             Fatal( "Unexpected argument '%s'", cli.Arg() );
         }
+    }
+
+    if ( !isMMX )
+    {
+        Fatal( "--mmx argument is required, as this fork only produces plots not compatible with Chia and must be specified to prevent user error." );
+        exit ( 1 );
     }
 
     // The remainder should be output folders
@@ -473,6 +484,9 @@ R"(
  help       : Output this help message, or help for a specific command, if specified.
 
 [GLOBAL_OPTIONS]:
+
+--mmx                 : Plot for MMX. Required to prevent user error with this build.
+
  -h, --help           : Shows this message and exits.
 
  -t, --threads        : Maximum number of threads to use.

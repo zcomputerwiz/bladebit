@@ -2,7 +2,7 @@
 #include "util/Util.h"
 
 
-#define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
+#define PLOT_FILE_PREFIX_LEN (sizeof("plot-mmx-k32-2021-08-05-18-55-")-1)
 
 //-----------------------------------------------------------
 void PlotTools::GenPlotFileName( const byte plotId[BB_PLOT_ID_LEN], char outPlotFileName[BB_PLOT_FILE_LEN] )
@@ -13,7 +13,7 @@ void PlotTools::GenPlotFileName( const byte plotId[BB_PLOT_ID_LEN], char outPlot
     time_t     now = time( nullptr );
     struct tm* t   = localtime( &now ); ASSERT( t );
     
-    const size_t r = strftime( outPlotFileName, BB_PLOT_FILE_LEN, "plot-k32-%Y-%m-%d-%H-%M-", t );
+    const size_t r = strftime( outPlotFileName, BB_PLOT_FILE_LEN, "plot-mmx-k32-%Y-%m-%d-%H-%M-", t );
     if( r != PLOT_FILE_PREFIX_LEN )
         Fatal( "Failed to generate plot file." );
 
@@ -114,6 +114,13 @@ void PlotTools::GeneratePlotIdAndMemo(
         auto plotPkBytes = plotPublicKey.Serialize();
         bytes.insert( bytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
 
+        // Make Unique per MMX
+        std::vector<uint8_t> tmp(32 + 4);
+        bls::Util::Hash256(tmp.data(), bytes.data(), bytes.size());
+        const uint32_t port_u32 = PLOT_MMX_PORT;
+        memcpy(tmp.data() + 32, &port_u32, 4);
+        bytes = tmp;
+
         bls::Util::Hash256( plotId, bytes.data(), bytes.size() );
 
         // Gen memo
@@ -138,6 +145,14 @@ void PlotTools::GeneratePlotIdAndMemo(
         auto plotPkBytes = plotPublicKey.Serialize();
 
         plotIdBytes.insert( plotIdBytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
+
+        // Make Unique per MMX
+        std::vector<uint8_t> tmp(32 + 4);
+        bls::Util::Hash256(tmp.data(), plotIdBytes.data(), plotIdBytes.size());
+        const uint32_t port_u32 = PLOT_MMX_PORT;
+        memcpy(tmp.data() + 32, &port_u32, 4);
+        plotIdBytes = tmp;
+
         bls::Util::Hash256( plotId, plotIdBytes.data(), plotIdBytes.size() );
 
         // Gen memo
