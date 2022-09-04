@@ -1,7 +1,9 @@
 name: Build Release Assets
 on:
   push:
-    branches: ['*']
+    # branches: ['*']
+    tags:
+        - '**'
   workflow_dispatch:
 
 jobs:
@@ -63,71 +65,71 @@ jobs:
           path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
           if-no-files-found: error
 
-  build-ubuntu-arm64:
-    runs-on: [ARM64, Linux]
-    container:
-      image: chianetwork/ubuntu-20.04-builder:latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+  # build-ubuntu-arm64:
+  #   runs-on: [ARM64, Linux]
+  #   container:
+  #     image: chianetwork/ubuntu-20.04-builder:latest
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   steps:
+  #     - name: Checkout Repo
+  #       uses: actions/checkout@v3
 
-      - name: Get Version Number
-        id: version_number
-        run: .github/actions/get-version.sh ubuntu arm64
+  #     - name: Get Version Number
+  #       id: version_number
+  #       run: .github/actions/get-version.sh ubuntu arm64
 
-      - name: Install Prerequisites
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt update
-          apt install -y build-essential git libgmp-dev libnuma-dev
+  #     - name: Install Prerequisites
+  #       run: |
+  #         export DEBIAN_FRONTEND=noninteractive
+  #         apt update
+  #         apt install -y build-essential git libgmp-dev libnuma-dev
 
-      - name: Build
-        env:
-          BB_ARTIFACT_NAME: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          BB_VERSION: ${{steps.version_number.outputs.BB_VERSION}}
-        run: .github/actions/build-asset-unix.sh
+  #     - name: Build
+  #       env:
+  #         BB_ARTIFACT_NAME: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         BB_VERSION: ${{steps.version_number.outputs.BB_VERSION}}
+  #       run: .github/actions/build-asset-unix.sh
 
-      - name: Upload Artifact Ubuntu ARM64
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          if-no-files-found: error
+  #     - name: Upload Artifact Ubuntu ARM64
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         if-no-files-found: error
 
-  build-centos-arm64:
-    runs-on: [ARM64, Linux]
-    container:
-      image: quay.io/centos/centos:stream8
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+  # build-centos-arm64:
+  #   runs-on: [ARM64, Linux]
+  #   container:
+  #     image: quay.io/centos/centos:stream8
+  #   steps:
+  #     - name: Checkout Repo
+  #       uses: actions/checkout@v3
 
-      - name: Get Version Number
-        id: version_number
-        run: .github/actions/get-version.sh centos arm64
+  #     - name: Get Version Number
+  #       id: version_number
+  #       run: .github/actions/get-version.sh centos arm64
 
-      - name: Install Prerequisites
-        run: |
-          dnf install -y gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
-                         cmake gmp-devel numactl-devel make git
+  #     - name: Install Prerequisites
+  #       run: |
+  #         dnf install -y gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
+  #                        cmake gmp-devel numactl-devel make git
 
-      - name: Build
-        env:
-          BB_ARTIFACT_NAME: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          BB_VERSION: ${{steps.version_number.outputs.BB_VERSION}}
-        run: |
-          source /opt/rh/gcc-toolset-9/enable
-          .github/actions/build-asset-unix.sh
+  #     - name: Build
+  #       env:
+  #         BB_ARTIFACT_NAME: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         BB_VERSION: ${{steps.version_number.outputs.BB_VERSION}}
+  #       run: |
+  #         source /opt/rh/gcc-toolset-9/enable
+  #         .github/actions/build-asset-unix.sh
 
-      - name: Upload Artifact CentOS ARM64
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          if-no-files-found: error
+  #     - name: Upload Artifact CentOS ARM64
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         if-no-files-found: error
 
   build-windows-x86-64:
     runs-on: windows-2019
@@ -173,34 +175,34 @@ jobs:
           path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
           if-no-files-found: error
 
-  build-macos-arm64:
-    runs-on: [macOS, ARM64]
-    steps:
-      - name: Cleanup Environment
-        uses: Chia-Network/actions/clean-workspace@main
+  # build-macos-arm64:
+  #   runs-on: [macOS, ARM64]
+  #   steps:
+  #     - name: Cleanup Environment
+  #       uses: Chia-Network/actions/clean-workspace@main
 
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+  #     - name: Checkout Repo
+  #       uses: actions/checkout@v3
 
-      - name: Get Version Number
-        id: version_number
-        run: bash -e .github/actions/get-version.sh macos arm64
+  #     - name: Get Version Number
+  #       id: version_number
+  #       run: bash -e .github/actions/get-version.sh macos arm64
 
-      - name: Install Prerequisites
-        run: brew install cmake
+  #     - name: Install Prerequisites
+  #       run: brew install cmake
 
-      - name: Build
-        env:
-          BB_ARTIFACT_NAME: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          BB_VERSION: ${{steps.version_number.outputs.BB_VERSION}}
-        run: .github/actions/build-asset-unix.sh
+  #     - name: Build
+  #       env:
+  #         BB_ARTIFACT_NAME: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         BB_VERSION: ${{steps.version_number.outputs.BB_VERSION}}
+  #       run: .github/actions/build-asset-unix.sh
 
-      - name: Upload Artifact macOS arm64
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
-          if-no-files-found: error
+  #     - name: Upload Artifact macOS arm64
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: ${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         path: ${{ github.workspace }}/bin/${{ steps.version_number.outputs.BB_ARTIFACT_NAME }}
+  #         if-no-files-found: error
 
   build-macos-x86-64:
     runs-on: macOS-latest
