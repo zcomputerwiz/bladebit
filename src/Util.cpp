@@ -2,6 +2,39 @@
 #include "util/Log.h"
 
 //-----------------------------------------------------------
+void Exit( int code )
+{
+    exit( code );
+}
+
+//-----------------------------------------------------------
+void PanicExit()
+{
+    // SysHost::DumpStackTrace();
+    Exit( 1 );
+}
+
+//-----------------------------------------------------------
+void VPanicErrorMsg( const char* message, va_list args  )
+{
+    Log::Flush();
+    Log::FlushError();
+
+    Log::Error( "\n*** Panic!!! *** Fatal Error:  " );
+    Log::Error( message, args );
+    Log::FlushError();
+}
+
+//-----------------------------------------------------------
+void PanicErrorMsg( const char* message, ... )
+{
+    va_list args;
+    va_start( args, message );
+    VPanicErrorMsg( message, args );
+    va_end( args );
+}
+
+//-----------------------------------------------------------
 void VFatal( const char* message, va_list args )
 {
     Log::Error( "Fatal Error:" );

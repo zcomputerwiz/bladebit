@@ -29,6 +29,26 @@
 ///
 /// Assorted utility functions
 /// 
+// void Exit( int code );
+// void FatalExit();
+void PanicExit();
+// void FatalErrorMsg( const char* message, ... );
+void PanicErrorMsg( const char* message, ... );
+
+// Fatal: Post a message and exit with error
+// Panic: Same as panic, but the error is unexpected,
+//         so a stack trace is also printed out.
+//-----------------------------------------------------------
+#ifdef _WIN32
+//     #define Fatal( message, ... )  { FatalErrorMsg( message, __VA_ARGS__ ); BBDebugBreak(); FatalExit(); }
+    #define Panic( message, ... )  { PanicErrorMsg( message, __VA_ARGS__ ); PanicExit(); }
+#else
+//     #define Fatal( message, ... )  { FatalErrorMsg( message, ## __VA_ARGS__ ); BBDebugBreak(); FatalExit(); }
+    #define Panic( message, ... )  { PanicErrorMsg( message, ## __VA_ARGS__ ); PanicExit(); }
+#endif
+
+// #define FatalIf( cond, message, ... ) if( (cond) ) { Fatal( message, ## __VA_ARGS__ ); }
+#define PanicIf( cond, message, ... ) if( (cond) ) { Panic( message, ## __VA_ARGS__ ); }
 
 // Post a message and exit with error
 //-----------------------------------------------------------

@@ -22,7 +22,14 @@ extern "C" {
 #pragma warning( disable : 6287  )
 #pragma warning( disable : 4267  )
 #pragma warning( disable : 26495 )
+#ifdef err_get_code
+#pragma push_macro("err_get_code")
+#undef err_get_code
 #include "bls.hpp"
+#pragma pop_macro("err_get_code")
+#else
+#include "bls.hpp"
+#endif
 #include "elements.hpp"
 #include "schemes.hpp"
 #include "util.hpp"
