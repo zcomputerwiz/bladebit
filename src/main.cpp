@@ -29,10 +29,13 @@ extern "C" {
 #pragma GCC diagnostic pop
 #pragma warning( pop )
 
-// #define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
-// #define PLOT_FILE_FMT_LEN (sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
-#define PLOT_FILE_PREFIX_LEN (sizeof("plot-mmx-k32-2077-11-45-14-19-")-1)
-#define PLOT_FILE_FMT_LEN (sizeof( "/plot-mmx-k32-2077-11-45-14-19-19a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
+#define PLOT_FILE_FMT "plot-k32-%Y-%m-%d-%H-%M-"
+#define PLOT_FILE_PREFIX_LEN (sizeof("plot-k32-2021-08-05-18-55-")-1)
+#define PLOT_FILE_FMT_LEN (sizeof( "/plot-k32-2021-08-05-18-55-77a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
+#define PLOT_CHIA_PORT 11337
+#define PLOT_MMX_FILE_FMT "plot-mmx-k32-%Y-%m-%d-%H-%M-"
+#define PLOT_MMX_FILE_PREFIX_LEN (sizeof("plot-mmx-k32-2077-11-45-14-19-")-1)
+#define PLOT_MMX_FILE_FMT_LEN (sizeof( "/plot-mmx-k32-2077-11-45-14-19-19a011fc20f0003c3adcc739b615041ae56351a22b690fd854ccb6726e5f43b7.plot.tmp" ))
 #define PLOT_MMX_PORT 11337
 
 /// Internal Data Structures
@@ -55,6 +58,7 @@ struct Config
     const char*     plotId             = nullptr;
     const char*     plotMemo           = nullptr;
     bool            showMemo           = false;
+    bool            isMMX              = false;
 };
 
 /// Internal Functions
@@ -63,7 +67,7 @@ bool            HexPKeyToG1Element( const char* hexKey, bls::G1Element& pkey );
 
 ByteSpan        DecodePuzzleHash( const char* poolContractAddress );
 void            GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32], uint16& outMemoSize );
-bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk );
+bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk, bool isMMX );
 bls::G1Element  GeneratePlotPublicKey( const bls::G1Element& localPk, bls::G1Element& farmerPk, const bool includeTaproot );
 
 std::vector<uint8_t> BytesConcat( std::vector<uint8_t> a, std::vector<uint8_t> b, std::vector<uint8_t> c );
@@ -88,7 +92,7 @@ R"(
 
 OPTIONS:
 
- --mmx                : Plot for MMX. Required to prevent user error with this build.
+ --mmx                : Plot for MMX. MMX plots are not compatible with Chia.
 
  -h, --help           : Shows this message and exits.
 
@@ -149,7 +153,7 @@ int main( int argc, const char* argv[] )
     // Create the plot output path
     size_t outputFolderLen = strlen( cfg.outputFolder );
     
-    char* plotOutPath = new char[outputFolderLen + PLOT_FILE_FMT_LEN];
+    char* plotOutPath = new char[outputFolderLen + ( cfg.isMMX ? PLOT_MMX_FILE_FMT_LEN : PLOT_FILE_FMT_LEN )];
 
     if( outputFolderLen )
     {
@@ -208,12 +212,12 @@ int main( int argc, const char* argv[] )
             time_t     now = time( nullptr  );
             struct tm* t   = localtime( &now ); ASSERT( t );
             
-            const size_t r = strftime( plotOutPath + outputFolderLen, PLOT_FILE_FMT_LEN, "plot-mmx-k32-%Y-%m-%d-%H-%M-", t );
-            if( r != PLOT_FILE_PREFIX_LEN )
+            const size_t r = strftime( plotOutPath + outputFolderLen, ( cfg.isMMX ? PLOT_MMX_FILE_FMT_LEN : PLOT_FILE_FMT_LEN ), ( cfg.isMMX ? PLOT_MMX_FILE_FMT : PLOT_FILE_FMT ), t );
+            if( r != ( cfg.isMMX ? PLOT_MMX_FILE_PREFIX_LEN : PLOT_FILE_PREFIX_LEN ) )
                 Fatal( "Failed to generate plot file." );
 
-            memcpy( plotOutPath + outputFolderLen + PLOT_FILE_PREFIX_LEN     , plotIdStr, 64 );
-            memcpy( plotOutPath + outputFolderLen + PLOT_FILE_PREFIX_LEN + 64, ".plot.tmp", sizeof( ".plot.tmp" ) );
+            memcpy( plotOutPath + outputFolderLen + ( cfg.isMMX ? PLOT_MMX_FILE_PREFIX_LEN : PLOT_FILE_PREFIX_LEN ), plotIdStr, 64 );
+            memcpy( plotOutPath + outputFolderLen + ( cfg.isMMX ? PLOT_MMX_FILE_PREFIX_LEN : PLOT_FILE_PREFIX_LEN ) + 64, ".plot.tmp", sizeof( ".plot.tmp" ) );
         }
 
         Log::Line( "Generating plot %d / %d: %s", i+1, cfg.plotCount, plotIdStr );
@@ -293,7 +297,7 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
     const char* farmerPublicKey     = nullptr;
     const char* poolPublicKey       = nullptr;
     const char* poolContractAddress = nullptr;
-    bool isMMX = false;
+    // bool isMMX = false;
 
     for( i = 0; i < argc; i++ )
     {
@@ -305,7 +309,7 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
             exit( 0 );
         } else if( check( "--mmx"))
         {
-            isMMX = true;
+            cfg.isMMX = true;
             Log::Line("Warning: This will produce only MMX Blockchain Plots. MMX Plots are not compatible with Chia blockchain.");
         }
         else if( check( "-t" ) || check( "--threads") )
@@ -427,10 +431,11 @@ void ParseCommandLine( int argc, const char* argv[], Config& cfg )
             cfg.outputFolder = arg;
         }
     }
-    if ( !isMMX )
+    if ( cfg.isMMX )
     {
-        Fatal( "--mmx argument is required, as this fork only produces plots not compatible with Chia and must be specified to prevent user error." );
-        exit ( 1 );
+        Log::Line( "Plotting for MMX!" );
+    //     Fatal( "--mmx argument is required, as this fork only produces plots not compatible with Chia and must be specified to prevent user error." );
+    //     exit ( 1 );
     }
     #undef check
 
@@ -524,7 +529,7 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
     SysHost::Random( seed, sizeof( seed ) );
 
     bls::PrivateKey sk      = bls::AugSchemeMPL().KeyGen( bls::Bytes( seed, sizeof( seed ) ) );
-    bls::G1Element  localPk = std::move( MasterSkToLocalSK( sk ) ).GetG1Element();
+    bls::G1Element  localPk = std::move( MasterSkToLocalSK( sk, cfg.isMMX ) ).GetG1Element();
 
     // #See: chia-blockchain create_plots.py
     //       The plot public key is the combination of the harvester and farmer keys
@@ -546,11 +551,14 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
         bytes.insert( bytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
 
         // Make Unique per MMX
-        std::vector<uint8_t> tmp(32 + 4);
-        bls::Util::Hash256(tmp.data(), bytes.data(), bytes.size());
-        const uint32_t port_u32 = PLOT_MMX_PORT;
-        memcpy(tmp.data() + 32, &port_u32, 4);
-        bytes = tmp;
+        if ( cfg.isMMX )
+        {
+            std::vector<uint8_t> tmp(32 + 4);
+            bls::Util::Hash256(tmp.data(), bytes.data(), bytes.size());
+            const uint32_t port_u32 = PLOT_MMX_PORT;
+            memcpy(tmp.data() + 32, &port_u32, 4);
+            bytes = tmp;
+        }
 
         bls::Util::Hash256( plotId, bytes.data(), bytes.size() );
 
@@ -578,11 +586,14 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
         plotIdBytes.insert( plotIdBytes.end(), plotPkBytes.begin(), plotPkBytes.end() );
 
         // Make Unique per MMX
-        std::vector<uint8_t> tmp(32 + 4);
-        bls::Util::Hash256(tmp.data(), plotIdBytes.data(), plotIdBytes.size());
-        const uint32_t port_u32 = PLOT_MMX_PORT;
-        memcpy(tmp.data() + 32, &port_u32, 4);
-        plotIdBytes = tmp;
+        if ( cfg.isMMX )
+        {
+            std::vector<uint8_t> tmp(32 + 4);
+            bls::Util::Hash256(tmp.data(), plotIdBytes.data(), plotIdBytes.size());
+            const uint32_t port_u32 = PLOT_MMX_PORT;
+            memcpy(tmp.data() + 32, &port_u32, 4);
+            plotIdBytes = tmp;
+        }
 
         bls::Util::Hash256( plotId, plotIdBytes.data(), plotIdBytes.size() );
 
@@ -598,7 +609,7 @@ void GeneratePlotIdAndMemo( Config& cfg, byte plotId[32], byte plotMemo[48+48+32
 }
 
 //-----------------------------------------------------------
-bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk )
+bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk, bool isMMX )
 {
     // #SEE: chia-blockchain: derive-keys.py
     // EIP 2334 bls key derivation
@@ -614,7 +625,7 @@ bls::PrivateKey MasterSkToLocalSK( bls::PrivateKey& sk )
     const uint32 localIdx           = 3;
 
     bls::PrivateKey ssk = bls::AugSchemeMPL().DeriveChildSk( sk, blsSpecNum );
-    ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, PLOT_MMX_PORT );
+    ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, ( isMMX ? PLOT_CHIA_PORT : PLOT_MMX_PORT ) );
     ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, localIdx );
     ssk = bls::AugSchemeMPL().DeriveChildSk( ssk, 0        );
 
