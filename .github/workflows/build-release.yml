@@ -8,10 +8,10 @@ on:
 
 jobs:
   build-ubuntu-x86-64:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Get Version Number
         id: version_number
@@ -34,12 +34,12 @@ jobs:
           if-no-files-found: error
 
   build-centos-x86-64:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     container:
-      image: centos:8
+      image: quay.io/centos/centos:stream8
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Get Version Number
         id: version_number
@@ -135,7 +135,7 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Get Version Number
         shell: bash
