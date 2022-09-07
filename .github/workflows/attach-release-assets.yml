@@ -26,15 +26,19 @@ jobs:
         run: |
 
           BB_VERSION=$(basename $GITHUB_REF)
-          BB_VERSION=${BB_VERSION:1}
           echo "Release Version: $BB_VERSION"
+          version=$(cat VERSION)
+          suffix=
+
+          if [[ "$GITHUB_REF_NAME" != "master" ]]; then
+              suffix="-$GITHUB_REF_NAME"
+          fi
 
           artifacts=(
-            bladebit-v${BB_VERSION}-ubuntu-x86-64.tar.gz
-            bladebit-v${BB_VERSION}-centos-x86-64.tar.gz
-            bladebit-v${BB_VERSION}-ubuntu-arm64.tar.gz
-            bladebit-v${BB_VERSION}-centos-arm64.tar.gz
-            bladebit-v${BB_VERSION}-windows-x86-64.zip
+            bladebit-v${version}${suffix}-ubuntu-x86-64.tar.gz
+            bladebit-v${version}${suffix}-centos-x86-64.tar.gz
+            bladebit-v${version}${suffix}-macos-x86-64.tar.gz
+            bladebit-v${version}${suffix}-windows-x86-64.zip
           )
 
           mkdir -p bin
@@ -48,13 +52,11 @@ jobs:
             response_code=$(curl -w "%{http_code}" -o "bin/${artifact_name}.zip" "$url")
             if [[ $response_code -ne 200 ]]; then
               >&2 echo "Failed to download artifact"
-              exit 1 
             fi
-
             unzip -d bin "bin/${artifact_name}.zip"
-            
+
             # Upload artifact to release
             echo "Uploading release asset '${artifact_name}'"
             node .github/actions/artifacts.mjs upload-release-asset $BB_VERSION $artifact_name bin/$artifact_name
+
           done
- 
