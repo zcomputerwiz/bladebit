@@ -4,7 +4,7 @@ import * as Path from 'path';
 
 const log = console.log;
 
-const OWNER    = 'Chia-Network';
+const OWNER    = 'zcomputerwiz';
 const REPO     = 'bladebit';
 const API_BASE = `/repos/${OWNER}/${REPO}`;
 
@@ -86,12 +86,12 @@ async function uploadReleaseAsset( argv )
 
     let response = await octokit.request( `GET ${API}` );
     failIfErrorResponse( response, 'Failed to retrieve releases' );
-    // log( JSON.stringify( response.data, null, 4 ) );
+    log( JSON.stringify( response.data, null, 4 ) );
 
     // Find the specified release
     const release = response.data.find( a => a.tag_name === tag );
-    failIf( !release, `Failed to obtain release for version ${version}` );
-    // log( JSON.stringify( release, null, 4 ) );
+    failIf( !release, `Failed to obtain release for version ${tag}` );
+    log( JSON.stringify( release, null, 4 ) );
 
     const asset = FS.readFileSync( assetPath );
 
