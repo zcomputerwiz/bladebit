@@ -80,7 +80,7 @@ async function uploadReleaseAsset( argv )
     const version   = argv[0];
     const assetName = argv[1];
     const assetPath = argv[2];
-    const tag       = 'v' + version;
+    const tag       = version;
     
     const octokit = new Octokit();
 
