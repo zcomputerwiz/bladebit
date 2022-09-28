@@ -1,6 +1,8 @@
 # BladeBit Chia Plotter
 
-[![Release Builds](https://github.com/Chia-Network/bladebit/actions/workflows/build-release.yml/badge.svg?branch=master&event=push)](https://github.com/Chia-Network/bladebit/actions/workflows/build-release.yml)
+[![BladeBit Release Builds](https://github.com/zcomputerwiz/bladebit/actions/workflows/build-release.yml/badge.svg)](https://github.com/zcomputerwiz/bladebit/actions/workflows/build-release.yml)
+
+Download the latest releases here:  [ZComputerWiz Bladebit MMX releases](https://github.com/zcomputerwiz/bladebit/releases/)
 
 A fast **RAM-only**, **k32-only**, Chia plotter.
 
@@ -10,7 +12,7 @@ A fast **RAM-only**, **k32-only**, Chia plotter.
 64-bit is supported only, for obvious reasons.
 
 ## Prerequisites
-Only **Linux** & **Windows** are supported.
+**Linux** **Windows** and **MacOS** are supported.
 
 ### Linux
 
@@ -33,7 +35,7 @@ Must have [Visual Studio 2019](https://visualstudio.microsoft.com/vs/) or its bu
 ```bash
 
 # Clone the repo & its submodules
-git clone https://github.com/Chia-Network/bladebit.git && cd bladebit
+git clone https://github.com/zcomputerwiz/bladebit.git && cd bladebit
 
 # Create a build directory for cmake and cd into it
 mkdir build
