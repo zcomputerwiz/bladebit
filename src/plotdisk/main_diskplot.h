@@ -371,7 +371,7 @@ void ParseConfig( int argc, const char* argv[], GlobalConfig& gConfig, DiskPlott
     }
 
     if( cfg.ioThreadCount == 0 )
-        cfg.ioThreadCount = 1;        // #TODO: figure out a reasonable default. Probably 1 or 2 for current consumer NVMes running on PCIe3...
+        cfg.ioThreadCount = 2;        // #TODO: figure out a reasonable default. Probably 1 or 2 for current consumer NVMes running on PCIe3...
     else if( cfg.ioThreadCount > sysLogicalCoreCount )
     {
         Log::Line( "Warning: Limiting disk queue threads to %u, which is the system's logical CPU count.", sysLogicalCoreCount );
