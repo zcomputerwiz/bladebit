@@ -19,8 +19,6 @@
     #error Byte swapping intrinsics not configured for this compiler.
 #endif
 
-// Global define for MMX port
-#define PLOT_MMX_PORT 11337
 
 /// Byte size conversions
 #define KB *(1<<10)
