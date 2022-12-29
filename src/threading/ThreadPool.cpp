@@ -20,10 +20,10 @@ ThreadPool::ThreadPool( uint threadCount, Mode mode, bool disableAffinity )
 
     auto threadRunner = mode == Mode::Fixed ? FixedThreadRunner : GreedyThreadRunner;
 
-    for( uint i = 0; i < threadCount; i++ )
+    for( uint i = 0; i < threadCount - 2; i++ )
     {
         _threadData[i].index = (int)i;
-        _threadData[i].cpuId = i;
+        _threadData[i].cpuId = i+2;
         _threadData[i].pool  = this;
         
         Thread& t = _threads[i];
